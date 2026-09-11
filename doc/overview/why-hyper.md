@@ -38,7 +38,8 @@ Hyper’s implementation is **Rust-hosted** and follows a **memory-safe** system
 
 - Clear error kinds (`SyntaxError`, `IndentationError`, `RuntimeError`) instead of silent corruption.
 - A compiled runtime with explicit value kinds and bounded buffers for I/O.
-- **Parallel and multithreaded execution** as a language feature (`@parallel`, with real thread pools planned as codegen matures).
+- **No GIL** (native AOT, not a bytecode VM). **Parallel and multithreaded execution** is a language feature (`@parallel`); real thread-pool codegen is maturing — today the decorator still runs sequentially with the same per-index results.
+- **Compile-time typechecking** that fails before codegen for known/annotated mismatches (including struct fields), so many errors surface while writing/compiling — not only when the process is deep into a run.
 
 The goal is **safe concurrency** plus **predictable performance**, not “fast but fragile” native code.
 
