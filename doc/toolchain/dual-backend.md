@@ -42,4 +42,4 @@ Linux, macOS, and native Windows are first-class. On Windows, WSL is optional â€
 
 ## Direction
 
-Grow the compiler (threaded `@parallel`, SIMD/GPU `@vectorize`, library interop). Do not reintroduce a tree-walk interpreter or Cranelift JIT.
+Grow the compiler (SIMD/GPU `@vectorize`, library interop, denser unboxed ABI). Do not reintroduce a tree-walk interpreter or Cranelift JIT.
