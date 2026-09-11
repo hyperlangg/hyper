@@ -106,16 +106,13 @@ pub enum IrInstr {
         else_block: BlockId,
     },
     Label { block: BlockId },
-    // Retained for future parallel lowering; compiler currently emits sequential loops.
-    #[allow(dead_code)]
-    ParallelForBegin {
-        var: String,
+    /// Run `worker(i)` for `i` in `[start, end)` on a thread pool (AOT runtime).
+    /// `worker` is a Hyper function with a single integer parameter (pair ABI).
+    ParallelRange {
         start: ValueId,
         end: ValueId,
-        vectorized: bool,
+        worker: String,
     },
-    #[allow(dead_code)]
-    ParallelForEnd,
 }
 
 #[derive(Debug, Clone)]
@@ -265,17 +262,15 @@ impl fmt::Display for IrInstr {
                 cond, then_block, else_block
             ),
             IrInstr::Label { block } => write!(f, "b{}:", block),
-            IrInstr::ParallelForBegin {
-                var,
+            IrInstr::ParallelRange {
                 start,
                 end,
-                vectorized,
+                worker,
             } => write!(
                 f,
-                "  parallel_for_begin {} v{}..v{} vectorized={}",
-                var, start, end, vectorized
+                "  parallel_range v{}..v{} worker {}",
+                start, end, worker
             ),
-            IrInstr::ParallelForEnd => write!(f, "  parallel_for_end"),
         }
     }
 }
