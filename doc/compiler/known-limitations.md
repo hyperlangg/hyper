@@ -2,6 +2,16 @@
 
 Hyper v0.1 targets a **working compiler for core programs**, not full language parity. When a construct is unsupported, lowering reports a **`SyntaxError`** with a line number before codegen starts (multiple errors collected in one pass when possible).
 
+## vs CPython weaknesses
+
+Hyper is aimed at fixing CPython’s classic bottlenecks. Status today:
+
+| CPython weakness | Hyper today |
+|------------------|-------------|
+| **GIL** (one bytecode thread at a time) | **No GIL** — Hyper is AOT native code, not a bytecode VM. There is nothing like CPython’s GIL. **However**, `@parallel` still lowers to a **sequential** loop until threaded codegen ships, so you do not yet get multi-core speedup from that decorator. |
+| **Heavy memory from dynamic objects** | **Partial** — no interpreter object model; values are compact tagged `payload`+`kind` pairs and native heaps. Still not fully unboxed C/Rust layouts for every local (kinds travel with many values). Further ABI specialization is planned. |
+| **Type errors only at runtime** | **Mostly fixed for annotated / known types** — `typecheck` is **fatal** before codegen on `run` / `compile` (exit 65). Struct field reads/writes check field existence, mutability, and types. Untyped/`Any` holes and some dynamic ops can still fail at runtime (exit 70). Prefer annotations for the strongest guarantees. |
+
 ## Behavioral notes
 
 | Construct | Compiler behavior |
@@ -23,12 +33,13 @@ A function body does not inherit the loop around its declaration, so a `break` i
 
 - Generics (`make_it_speak[T: Speaker]` in docs is aspirational)
 - Production GPU / SIMD codegen for `@vectorize`
+- Threaded `@parallel` codegen (decorator accepted; loop is sequential today)
 - Full reclaim of every temporary string on the compile path (containers free overwritten elements; file/mmap handles free on close)
 - `try` / `except` — Hyper uses explicit `raise` / `raises` / `handle` instead (see [Errors](../errors/overview.md))
 
 ## String methods
 
-String methods share one runtime on **`run` and `compile`**. `split()` / `rsplit()` with no separator follow Python whitespace rules. `--emit-exe` case transforms are ASCII-oriented in the C runtime; JIT uses full Unicode case mapping.
+String methods share one runtime on **`run` and `compile`**. `split()` / `rsplit()` with no separator follow Python whitespace rules. `--emit-exe` case transforms are ASCII-oriented in the C runtime; the Rust reference runtime uses full Unicode case mapping.
 
 ## Struct method resolution
 
@@ -40,6 +51,8 @@ The compiler must know the struct type at the call site. It follows:
 - Function return tracking
 
 If a method call fails to resolve, you get a compile error naming the missing field or method — add an annotation or restructure so the type is known earlier.
+
+Field **types**, **mutability**, and **existence** are checked when the receiver’s struct type is known.
 
 ## Error message format
 
