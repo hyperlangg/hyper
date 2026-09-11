@@ -4,9 +4,15 @@
     <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/0427f9c4-be17-4784-a3e5-8ac388b9ee9b">
     <img alt="The Hyper Programming Language" src="https://github.com/user-attachments/assets/0427f9c4-be17-4784-a3e5-8ac388b9ee9b" width="50%">
   </picture>
+
+  [Getting started] | [Documentation] | [Contributing]
 </div>
 
 This is the main source code repository for **Hyper**. It currently contains the native compiler, and documentation.
+
+[Getting Started]: https://github.com/hyperlangg/hyper/blob/main/doc/building.md
+[Documentation]: https://github.com/hyperlangg/hyper/tree/main/doc
+[Contributing]: CONTRIBUTING.md
 
 ## What is Hyper?
 
