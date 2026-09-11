@@ -13,6 +13,8 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#else
+#include <unistd.h>
 #endif
 
 enum {
@@ -1156,6 +1158,152 @@ void hyper_rt_print_struct(int64_t obj) {
         return;
     }
     format_struct((const RtStruct *)(intptr_t)obj);
+}
+
+/* ---- @parallel range: OS thread pool ---- */
+
+typedef struct {
+    int64_t payload;
+    int64_t kind;
+} HyperParRet;
+
+typedef HyperParRet (*HyperParFn)(int64_t payload, int64_t kind);
+
+typedef struct {
+    HyperParFn fn;
+    int64_t start;
+    int64_t end;
+} HyperParSlice;
+
+#ifdef _WIN32
+#include <windows.h>
+
+static DWORD WINAPI hyper_par_thread(LPVOID arg) {
+    HyperParSlice *s = (HyperParSlice *)arg;
+    for (int64_t i = s->start; i < s->end; i++) {
+        (void)s->fn(i, KIND_I64);
+    }
+    return 0;
+}
+#else
+#include <pthread.h>
+
+static void *hyper_par_thread(void *arg) {
+    HyperParSlice *s = (HyperParSlice *)arg;
+    for (int64_t i = s->start; i < s->end; i++) {
+        (void)s->fn(i, KIND_I64);
+    }
+    return NULL;
+}
+#endif
+
+void hyper_rt_parallel_for(int64_t start, int64_t end, HyperParFn fn) {
+    if (!fn || end <= start) {
+        return;
+    }
+    int64_t n = end - start;
+    int threads = 4;
+#ifdef _WIN32
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    if (si.dwNumberOfProcessors > 0) {
+        threads = (int)si.dwNumberOfProcessors;
+    }
+#else
+    long hc = sysconf(_SC_NPROCESSORS_ONLN);
+    if (hc > 0) {
+        threads = (int)hc;
+    }
+#endif
+    if (threads > 32) {
+        threads = 32;
+    }
+    if (threads > (int)n) {
+        threads = (int)n;
+    }
+    if (threads <= 1) {
+        for (int64_t i = start; i < end; i++) {
+            (void)fn(i, KIND_I64);
+        }
+        return;
+    }
+
+    HyperParSlice *slices = (HyperParSlice *)calloc((size_t)threads, sizeof(HyperParSlice));
+    if (!slices) {
+        for (int64_t i = start; i < end; i++) {
+            (void)fn(i, KIND_I64);
+        }
+        return;
+    }
+
+#ifdef _WIN32
+    HANDLE *handles = (HANDLE *)calloc((size_t)threads, sizeof(HANDLE));
+    if (!handles) {
+        free(slices);
+        for (int64_t i = start; i < end; i++) {
+            (void)fn(i, KIND_I64);
+        }
+        return;
+    }
+#else
+    pthread_t *handles = (pthread_t *)calloc((size_t)threads, sizeof(pthread_t));
+    if (!handles) {
+        free(slices);
+        for (int64_t i = start; i < end; i++) {
+            (void)fn(i, KIND_I64);
+        }
+        return;
+    }
+#endif
+
+    int64_t chunk = (n + threads - 1) / threads;
+    for (int t = 0; t < threads; t++) {
+        int64_t lo = start + (int64_t)t * chunk;
+        int64_t hi = lo + chunk;
+        if (lo >= end) {
+            break;
+        }
+        if (hi > end) {
+            hi = end;
+        }
+        slices[t].fn = fn;
+        slices[t].start = lo;
+        slices[t].end = hi;
+#ifdef _WIN32
+        handles[t] = CreateThread(NULL, 0, hyper_par_thread, &slices[t], 0, NULL);
+        if (!handles[t]) {
+            handles[t] = NULL;
+            for (int64_t i = lo; i < hi; i++) {
+                (void)fn(i, KIND_I64);
+            }
+        }
+#else
+        if (pthread_create(&handles[t], NULL, hyper_par_thread, &slices[t]) != 0) {
+            for (int64_t i = lo; i < hi; i++) {
+                (void)fn(i, KIND_I64);
+            }
+            handles[t] = (pthread_t)0;
+        }
+#endif
+    }
+
+#ifdef _WIN32
+    for (int t = 0; t < threads; t++) {
+        if (handles[t]) {
+            WaitForSingleObject(handles[t], INFINITE);
+            CloseHandle(handles[t]);
+        }
+    }
+    free(handles);
+#else
+    for (int t = 0; t < threads; t++) {
+        if (handles[t]) {
+            pthread_join(handles[t], NULL);
+        }
+    }
+    free(handles);
+#endif
+    free(slices);
 }
 
 int main(void) {
