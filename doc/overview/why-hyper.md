@@ -38,7 +38,7 @@ Hyper’s implementation is **Rust-hosted** and follows a **memory-safe** system
 
 - Clear error kinds (`SyntaxError`, `IndentationError`, `RuntimeError`) instead of silent corruption.
 - A compiled runtime with explicit value kinds and bounded buffers for I/O.
-- **No GIL** (native AOT, not a bytecode VM). **Parallel and multithreaded execution** is a language feature (`@parallel`); real thread-pool codegen is maturing — today the decorator still runs sequentially with the same per-index results.
+- **No GIL** (native AOT, not a bytecode VM). **`@parallel`** outlines eligible range loops onto an OS thread pool (`hyper_rt_parallel_for`). Bodies that capture outer locals still run sequentially with the same per-index results.
 - **Compile-time typechecking** that fails before codegen for known/annotated mismatches (including struct fields), so many errors surface while writing/compiling — not only when the process is deep into a run.
 
 The goal is **safe concurrency** plus **predictable performance**, not “fast but fragile” native code.
@@ -50,7 +50,7 @@ The goal is **safe concurrency** plus **predictable performance**, not “fast b
 | **Syntax** | Python-shaped core: functions, structs, modules, collections, typed bindings |
 | **Execution** | `hyper run` / `hyper compile` (AOT temp exe); `--emit-exe` to keep a binary — **no interpreter, no JIT** |
 | **I/O & JSON** | `open`, `with`, file methods, `open_mmap`, `import json`, `input()` on the compile path |
-| **Parallelism** | `@parallel` / `@vectorize` parse and run; compiler emits sequential loops until thread/GPU backends land |
+| **Parallelism** | `@parallel` uses an OS thread pool when the loop body is outlineable; `@vectorize` still sequential until SIMD/GPU backends land |
 | **Gaps** | Generics, full Python/stdlib parity — see [Known limitations](../compiler/known-limitations.md) |
 
 ## Why pick Hyper over …
