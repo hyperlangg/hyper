@@ -45,11 +45,20 @@ struct Scope {
     inferred: HashSet<String>,
 }
 
+#[derive(Debug, Clone)]
+struct StructFieldInfo {
+    ty: HyperType,
+    #[allow(dead_code)]
+    is_pub: bool,
+    is_mut: bool,
+}
+
 struct TypeChecker {
     scopes: Vec<Scope>,
     errors: Vec<String>,
     expected_return: Option<HyperType>,
-    structs: HashMap<String, ()>,
+    /// Struct name → field metadata (types + pub/mut).
+    structs: HashMap<String, HashMap<String, StructFieldInfo>>,
     /// Trait name → method signatures a struct must provide to implement it.
     traits: HashMap<String, Vec<MethodSig>>,
     /// Enclosing loops, so `break` / `continue` can be rejected outside one.
@@ -567,29 +576,85 @@ impl TypeChecker {
                     }
                 }
             }
-            Expr::GetField { object, .. } => {
-                // Soft: ensure object exists; field type is Any for now.
-                if self.lookup(object).is_none() && !self.structs.contains_key(object) {
-                    self.error(format!(
-                        "Error: Undefined variable '{}'.",
-                        object
-                    ));
+            Expr::GetField { object, field } => {
+                let Some(binding) = self.lookup(object) else {
+                    if !self.structs.contains_key(object) {
+                        self.error(format!("Error: Undefined variable '{}'.", object));
+                    }
+                    return HyperType::Any;
+                };
+                match &binding.ty {
+                    HyperType::Struct(name) => {
+                        if let Some(fields) = self.structs.get(name) {
+                            if let Some(info) = fields.get(field) {
+                                return info.ty.clone();
+                            }
+                            self.error(format!(
+                                "Type error: struct '{}' has no field '{}'.",
+                                name, field
+                            ));
+                            return HyperType::Any;
+                        }
+                        HyperType::Any
+                    }
+                    HyperType::Any => HyperType::Any,
+                    other => {
+                        self.error(format!(
+                            "Type error: cannot read field '{}' on value of type {:?}.",
+                            field, other
+                        ));
+                        HyperType::Any
+                    }
                 }
-                HyperType::Any
             }
             Expr::SetField {
                 object,
+                field,
                 value,
-                ..
             } => {
-                if self.lookup(object).is_none() {
-                    self.error(format!(
-                        "Error: Undefined variable '{}'.",
-                        object
-                    ));
+                let vt = self.check_expr(value);
+                let Some(binding) = self.lookup(object) else {
+                    self.error(format!("Error: Undefined variable '{}'.", object));
+                    return HyperType::Any;
+                };
+                match &binding.ty {
+                    HyperType::Struct(name) => {
+                        let name = name.clone();
+                        if let Some(info) = self
+                            .structs
+                            .get(&name)
+                            .and_then(|fields| fields.get(field))
+                            .cloned()
+                        {
+                            if !info.is_mut {
+                                self.error(format!(
+                                    "Type error: field '{}.{}' is not mutable.",
+                                    name, field
+                                ));
+                            }
+                            if !Self::is_compatible(&info.ty, &vt) {
+                                self.error(format!(
+                                    "Type error: cannot assign {:?} to field '{}.{}' of type {:?}.",
+                                    vt, name, field, info.ty
+                                ));
+                            }
+                            return info.ty;
+                        }
+                        self.error(format!(
+                            "Type error: struct '{}' has no field '{}'.",
+                            name, field
+                        ));
+                        HyperType::Any
+                    }
+                    HyperType::Any => HyperType::Any,
+                    other => {
+                        self.error(format!(
+                            "Type error: cannot assign field '{}' on value of type {:?}.",
+                            field, other
+                        ));
+                        HyperType::Any
+                    }
                 }
-                let _ = self.check_expr(value);
-                HyperType::Any
             }
             Expr::Call { callee, args } => self.check_call(callee, args),
             Expr::CallMethod {
@@ -1360,10 +1425,19 @@ impl TypeChecker {
                         None => self.error(format!("trait '{}' is not defined", t)),
                     }
                 }
+                let mut field_map = HashMap::new();
                 for field in fields {
-                    let _ = self.resolve_type_name(&field.type_name);
+                    let ty = self.resolve_type_name(&field.type_name);
+                    field_map.insert(
+                        field.name.clone(),
+                        StructFieldInfo {
+                            ty,
+                            is_pub: field.is_pub,
+                            is_mut: field.is_mut,
+                        },
+                    );
                 }
-                self.structs.insert(name.clone(), ());
+                self.structs.insert(name.clone(), field_map);
                 self.define(
                     name,
                     Binding {
@@ -1731,6 +1805,52 @@ mod tests {
         .expect_err("a break in a nested function should fail");
         assert!(
             errors.iter().any(|e| e.contains("break outside loop")),
+            "unexpected errors: {:?}",
+            errors
+        );
+    }
+
+    #[test]
+    fn struct_field_types_are_checked() {
+        let src = "\
+struct Point:\n\
+\x20   let pub mut x: i64\n\
+\x20   let pub y: i64\n\
+let mut p = Point(x: 1, y: 2)\n\
+p.x = \"no\"\n";
+        let errors = check(src).expect_err("assign string to i64 field");
+        assert!(
+            errors.iter().any(|e| e.contains("cannot assign")),
+            "unexpected errors: {:?}",
+            errors
+        );
+    }
+
+    #[test]
+    fn struct_unknown_field_is_rejected() {
+        let src = "\
+struct Point:\n\
+\x20   let pub x: i64\n\
+let p = Point(x: 1)\n\
+print(p.z)\n";
+        let errors = check(src).expect_err("unknown field");
+        assert!(
+            errors.iter().any(|e| e.contains("no field")),
+            "unexpected errors: {:?}",
+            errors
+        );
+    }
+
+    #[test]
+    fn immutable_struct_field_rejects_assign() {
+        let src = "\
+struct Point:\n\
+\x20   let pub x: i64\n\
+let mut p = Point(x: 1)\n\
+p.x = 2\n";
+        let errors = check(src).expect_err("immutable field");
+        assert!(
+            errors.iter().any(|e| e.contains("not mutable")),
             "unexpected errors: {:?}",
             errors
         );
