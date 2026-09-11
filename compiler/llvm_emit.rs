@@ -247,6 +247,7 @@ declare i64 @hyper_rt_json_dump(i64, i64, i64, i64, i64, i64, i64, i64)
 declare i64 @hyper_rt_handle_enter()
 declare i64 @hyper_rt_handle_leave()
 declare i64 @hyper_rt_raise(i64, i64, i64, i64)
+declare void @hyper_rt_parallel_for(i64, i64, {i64, i64} (i64, i64)*)
 "#
 }
 
@@ -1223,7 +1224,18 @@ impl FuncEmitter {
                     self.emit(&format!("br i1 {is_true}, label %{t}, label %{e}"));
                     self.terminated = true;
                 }
-                IrInstr::ParallelForBegin { .. } | IrInstr::ParallelForEnd => {}
+                IrInstr::ParallelRange {
+                    start,
+                    end,
+                    worker,
+                } => {
+                    let s = self.load_val(*start);
+                    let e = self.load_val(*end);
+                    let w = sanitize_name(worker);
+                    self.emit(&format!(
+                        "call void @hyper_rt_parallel_for(i64 {s}, i64 {e}, {{i64, i64}} (i64, i64)* @{w})"
+                    ));
+                }
             }
         }
 
@@ -1451,6 +1463,7 @@ pub fn emit_exe_llvm(module: &IrModule, out_path: &str) -> Result<(), String> {
             .arg(&out);
         if !cfg!(windows) {
             cmd.arg("-lm");
+            cmd.arg("-pthread");
         }
         cmd.status()
             .map_err(|e| format!("failed to invoke {clang}: {e}"))?
