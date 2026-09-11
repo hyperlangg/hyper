@@ -127,6 +127,8 @@ struct Lowerer {
     current_line: u32,
     /// True while lowering `__init__` (immutable fields may be written via `self`).
     in_init: bool,
+    /// Counter for outlined `@parallel` worker function names.
+    next_par_id: u32,
     /// Diagnostics collected while lowering, reported before codegen runs.
     errors: Vec<String>,
 }
@@ -154,6 +156,7 @@ impl Lowerer {
             traits: HashMap::new(),
             current_line: 0,
             in_init: false,
+            next_par_id: 0,
             errors: Vec::new(),
         }
     }
@@ -2275,12 +2278,52 @@ impl Lowerer {
                 }
                 match iter {
                     ForIter::Range { start, end } => {
-                        // Sequential label/branch loop. `@parallel` still compiles
-                        // sequentially until threaded codegen lands. `@vectorize` is a
-                        // SIMD-oriented hint with the same per-index semantics today.
                         let start_v = self.lower_expr(start);
                         let end_v = self.lower_expr(end);
 
+                        // True multi-thread AOT when the body only uses the induction
+                        // variable (plus call callees like `print`). Otherwise keep a
+                        // sequential loop so outer captures stay correct.
+                        if is_parallel && parallel_body_outlineable(body, var) {
+                            let worker = format!("__hyper_par_{}", self.next_par_id);
+                            self.next_par_id += 1;
+
+                            let saved = std::mem::take(&mut self.current);
+                            let saved_next_value = self.next_value;
+                            let saved_next_block = self.next_block;
+                            let saved_loops = std::mem::take(&mut self.loop_stack);
+                            let saved_var_structs = self.var_structs.clone();
+                            let saved_var_files = self.var_files.clone();
+                            let saved_var_mmaps = self.var_mmaps.clone();
+                            let saved_var_widths = self.var_int_widths.clone();
+                            self.next_value = 0;
+                            self.next_block = 0;
+                            self.var_int_widths.insert(var.clone(), IntWidth::I64);
+
+                            self.lower_stmt(body);
+                            let worker_body = std::mem::take(&mut self.current);
+                            self.functions.push(IrFunction {
+                                name: worker.clone(),
+                                params: vec![var.clone()],
+                                body: worker_body,
+                            });
+
+                            self.current = saved;
+                            self.next_value = saved_next_value;
+                            self.next_block = saved_next_block;
+                            self.loop_stack = saved_loops;
+                            self.var_structs = saved_var_structs;
+                            self.var_files = saved_var_files;
+                            self.var_mmaps = saved_var_mmaps;
+                            self.var_int_widths = saved_var_widths;
+
+                            self.emit(IrInstr::ParallelRange {
+                                start: start_v,
+                                end: end_v,
+                                worker,
+                            });
+                        } else {
+                        // Sequential label/branch loop (`@vectorize` / captured locals).
                         self.emit(IrInstr::Store {
                             name: var.clone(),
                             value: start_v,
@@ -2343,6 +2386,7 @@ impl Lowerer {
                         self.emit(IrInstr::Jump { target: header });
 
                         self.emit(IrInstr::Label { block: exit_b });
+                        }
                     }
                     ForIter::Iterable(iterable) => {
                         let list = self.lower_expr(iterable);
@@ -2617,6 +2661,79 @@ impl Lowerer {
             }
         }
     }
+}
+
+/// `@parallel` bodies that only touch the induction variable (and call callees)
+/// can be outlined into a worker for the AOT thread pool.
+fn parallel_body_outlineable(body: &Stmt, loop_var: &str) -> bool {
+    fn stmt_ok(s: &Stmt, loop_var: &str) -> bool {
+        match s {
+            Stmt::Block(ss) => ss.iter().all(|x| stmt_ok(x, loop_var)),
+            Stmt::Let { name, initializer, .. } => {
+                name == loop_var && expr_ok(initializer, loop_var, false)
+            }
+            Stmt::Print { values, .. } => values.iter().all(|e| expr_ok(e, loop_var, false)),
+            Stmt::Expr { expr, .. } => expr_ok(expr, loop_var, false),
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                expr_ok(condition, loop_var, false)
+                    && stmt_ok(then_branch, loop_var)
+                    && else_branch
+                        .as_ref()
+                        .map(|e| stmt_ok(e, loop_var))
+                        .unwrap_or(true)
+            }
+            Stmt::While {
+                condition, body, ..
+            } => expr_ok(condition, loop_var, false) && stmt_ok(body, loop_var),
+            Stmt::Return { value, .. } => expr_ok(value, loop_var, false),
+            Stmt::Break { .. } | Stmt::Continue { .. } => false,
+            Stmt::Raise { value, .. } => expr_ok(value, loop_var, false),
+            _ => false,
+        }
+    }
+    fn expr_ok(e: &Expr, loop_var: &str, as_callee: bool) -> bool {
+        match e {
+            Expr::Variable { name, .. } => as_callee || name == loop_var,
+            Expr::Assign { name, value } => name == loop_var && expr_ok(value, loop_var, false),
+            Expr::Call { callee, args } => {
+                expr_ok(callee, loop_var, true)
+                    && args.iter().all(|a| match a {
+                        CallArg::Positional(ex) | CallArg::Named { value: ex, .. } => {
+                            expr_ok(ex, loop_var, false)
+                        }
+                    })
+            }
+            Expr::Unary { right, .. } => expr_ok(right, loop_var, false),
+            Expr::Binary { left, right, .. } => {
+                expr_ok(left, loop_var, false) && expr_ok(right, loop_var, false)
+            }
+            Expr::Group(inner) => expr_ok(inner, loop_var, false),
+            Expr::Ternary {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                expr_ok(condition, loop_var, false)
+                    && expr_ok(then_branch, loop_var, false)
+                    && expr_ok(else_branch, loop_var, false)
+            }
+            Expr::Literal(_) => true,
+            Expr::List(items) => items.iter().all(|e| expr_ok(e, loop_var, false)),
+            Expr::Dict(entries) => entries
+                .iter()
+                .all(|(k, v)| expr_ok(k, loop_var, false) && expr_ok(v, loop_var, false)),
+            Expr::FString { parts, .. } => parts.iter().all(|p| match p {
+                FStringPart::Literal(_) => true,
+                FStringPart::Expr(ex) => expr_ok(ex, loop_var, false),
+            }),
+            _ => false,
+        }
+    }
+    stmt_ok(body, loop_var)
 }
 
 pub fn lower(stmts: &[Stmt], entry_path: &Path) -> Result<IrModule, Vec<String>> {
