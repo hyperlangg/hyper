@@ -218,6 +218,7 @@ struct RuntimeIds {
     handle_enter: FuncId,
     handle_leave: FuncId,
     raise_fn: FuncId,
+    parallel_for: FuncId,
 }
 
 fn make_flags(is_pic: bool) -> Result<settings::Flags, String> {
@@ -600,6 +601,15 @@ fn declare_runtime<M: Module>(module: &mut M) -> Result<RuntimeIds, String> {
     let handle_enter = declare_file("hyper_rt_handle_enter", 0, 1)?;
     let handle_leave = declare_file("hyper_rt_handle_leave", 0, 1)?;
     let raise_fn = declare_file("hyper_rt_raise", 4, 1)?;
+    let parallel_for = {
+        let mut sig = module.make_signature();
+        sig.params.push(AbiParam::new(types::I64)); // start
+        sig.params.push(AbiParam::new(types::I64)); // end
+        sig.params.push(AbiParam::new(types::I64)); // worker fn ptr
+        module
+            .declare_function("hyper_rt_parallel_for", Linkage::Import, &sig)
+            .map_err(|e| e.to_string())?
+    };
     Ok(RuntimeIds {
         print_i64,
         print_f64,
@@ -723,6 +733,7 @@ fn declare_runtime<M: Module>(module: &mut M) -> Result<RuntimeIds, String> {
         handle_enter,
         handle_leave,
         raise_fn,
+        parallel_for,
     })
 }
 
@@ -1199,6 +1210,7 @@ fn emit_exe_cranelift(module: &IrModule, out_path: &str) -> Result<(), String> {
         // libm is separate on many Unix toolchains; not required on Windows.
         if !cfg!(windows) {
             cmd.arg("-lm");
+            cmd.arg("-pthread");
         }
         cmd.status()
             .map_err(|e| format!("failed to invoke {cc}: {e}"))?
@@ -1392,8 +1404,7 @@ fn instr_uses(instr: &IrInstr) -> Vec<ValueId> {
         | IrInstr::Load { .. }
         | IrInstr::Label { .. }
         | IrInstr::Jump { .. }
-        | IrInstr::MakeStruct { .. }
-        | IrInstr::ParallelForEnd => vec![],
+        | IrInstr::MakeStruct { .. } => vec![],
         IrInstr::Store { value, .. } => vec![*value],
         IrInstr::Unary { src, .. } => vec![*src],
         IrInstr::Binary { left, right, .. } => vec![*left, *right],
@@ -1416,7 +1427,7 @@ fn instr_uses(instr: &IrInstr) -> Vec<ValueId> {
         IrInstr::Print { args } => args.clone(),
         IrInstr::Return { value } => value.iter().copied().collect(),
         IrInstr::Branch { cond, .. } => vec![*cond],
-        IrInstr::ParallelForBegin { start, end, .. } => vec![*start, *end],
+        IrInstr::ParallelRange { start, end, .. } => vec![*start, *end],
     }
 }
 
@@ -2815,7 +2826,21 @@ fn define_function<M: Module>(
                     builder.ins().brif(c, t, &[], e, &[]);
                     terminated = true;
                 }
-                IrInstr::ParallelForBegin { .. } | IrInstr::ParallelForEnd => {}
+                IrInstr::ParallelRange {
+                    start,
+                    end,
+                    worker,
+                } => {
+                    let worker_id = func_ids.get(worker).copied().ok_or_else(|| {
+                        format!("codegen: parallel worker '{worker}' not declared")
+                    })?;
+                    let worker_ref = module.declare_func_in_func(worker_id, &mut builder.func);
+                    let worker_ptr = builder.ins().func_addr(types::I64, worker_ref);
+                    let s = builder.use_var(value_vars[start]);
+                    let e = builder.use_var(value_vars[end]);
+                    let cal = module.declare_func_in_func(runtime.parallel_for, &mut builder.func);
+                    builder.ins().call(cal, &[s, e, worker_ptr]);
+                }
             }
         }
 
