@@ -12,7 +12,7 @@ This list reflects what **`hyper compile`** / **`hyper run`** can lower today (A
 - Literals: integers, floats, strings, f-strings, lists, dicts, `None`, booleans
 - Structs: fields with `pub` / `mut`, methods, `__init__`, field get/set; traits (method name + arity)
 - Modules: `import m`, `import m as alias`, `from m import name`
-- Decorators: `@parallel`, `@vectorize` on `for` (sequential loops today; same per-index results)
+- Decorators: `@parallel` (OS thread pool when body is outlineable; otherwise sequential), `@vectorize` on `for` (sequential today; same per-index results)
 
 ## Builtins and standard library (compile path)
 

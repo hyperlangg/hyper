@@ -8,15 +8,15 @@ Hyper is aimed at fixing CPython’s classic bottlenecks. Status today:
 
 | CPython weakness | Hyper today |
 |------------------|-------------|
-| **GIL** (one bytecode thread at a time) | **No GIL** — Hyper is AOT native code, not a bytecode VM. There is nothing like CPython’s GIL. **However**, `@parallel` still lowers to a **sequential** loop until threaded codegen ships, so you do not yet get multi-core speedup from that decorator. |
-| **Heavy memory from dynamic objects** | **Partial** — no interpreter object model; values are compact tagged `payload`+`kind` pairs and native heaps. Still not fully unboxed C/Rust layouts for every local (kinds travel with many values). Further ABI specialization is planned. |
+| **GIL** (one bytecode thread at a time) | **No GIL** — Hyper is AOT native code, not a bytecode VM. `@parallel` for-loops whose body only uses the induction variable (plus callees like `print`) are outlined and run on an **OS thread pool** via `hyper_rt_parallel_for`. Bodies that capture/mutate outer locals still lower sequentially (same per-index results). |
+| **Heavy memory from dynamic objects** | **Partial** — no interpreter object model; values are compact tagged `payload`+`kind` pairs and native heaps. Still not fully unboxed C/Rust layouts for every local. Further ABI specialization is planned. |
 | **Type errors only at runtime** | **Mostly fixed for annotated / known types** — `typecheck` is **fatal** before codegen on `run` / `compile` (exit 65). Struct field reads/writes check field existence, mutability, and types. Untyped/`Any` holes and some dynamic ops can still fail at runtime (exit 70). Prefer annotations for the strongest guarantees. |
 
 ## Behavioral notes
 
 | Construct | Compiler behavior |
 |-----------|-------------------|
-| `@parallel` on `for` | Emitted as a **sequential** loop (same per-index semantics). Threaded codegen is planned. |
+| `@parallel` on `for` | **Threaded** when the body is outlineable (induction variable + callees only). Otherwise sequential with the same per-index semantics. |
 | `@vectorize` on `for` | SIMD-oriented hint; still runs every index sequentially until SIMD/GPU backends land. |
 | Type errors | **Fatal** under `run` and `compile` before codegen |
 
@@ -33,7 +33,6 @@ A function body does not inherit the loop around its declaration, so a `break` i
 
 - Generics (`make_it_speak[T: Speaker]` in docs is aspirational)
 - Production GPU / SIMD codegen for `@vectorize`
-- Threaded `@parallel` codegen (decorator accepted; loop is sequential today)
 - Full reclaim of every temporary string on the compile path (containers free overwritten elements; file/mmap handles free on close)
 - `try` / `except` — Hyper uses explicit `raise` / `raises` / `handle` instead (see [Errors](../errors/overview.md))
 
