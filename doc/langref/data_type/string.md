@@ -13,7 +13,7 @@ Immutable bindings hold a fixed string; `let mut` allows reassignment (including
 
 - Concatenation uses `+`. Store-back forms like `s = s + "…"` reclaim the previous owned string on the compile path (see [String concat stress](../loop/str-concat-stress.md)).
 - Length: method `s.len()` or builtin `len(s)`.
-- A full Python-compatible method set is available on the compile path (`upper`, `lower`, `strip`, `split`, `replace`, `find`, …). Case transforms in AOT are ASCII-oriented in the C runtime.
+- A full Python-compatible method set is available on the compile path (`upper`, `lower`, `strip`, `split`, `replace`, `find`, …). AOT case transforms cover ASCII, Latin-1, Latin Extended-A, Cyrillic, Greek, and the `ß` / `İ` / `ı` expansions — not a full Unicode case-folding database.
 
 ## Notes
 
