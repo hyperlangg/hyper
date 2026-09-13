@@ -59,6 +59,11 @@ Integer `/`, `%`, `//` guard division by zero at runtime.
 | `ci/lang/traits_compile.hyp` | Trait conformance on compile path |
 | `ci/lang/pub_mut.hyp` | `pub` / `mut` field rules on compile path |
 | `ci/lang/ref_compile.hyp` | `ref` + shared struct fields on compile path |
+| `ci/lang/ref_list_share.hyp` | `ref` list append visible to the caller |
+| `ci/lang/ref_share.hyp` | shared list/dict/array payloads: alias mutation and overwrite |
+| `ci/control/range_step.hyp` | `range(start, end, step)` including negative step |
+| `ci/collections/sorted_reversed.hyp` | `sorted` / `reversed` order |
+| `ci/collections/unicode_case.hyp` | AOT Unicode case transforms |
 | `ci/lang/vectorize_compile.hyp` | `@vectorize` / `@parallel` compile |
 
 ## Loop control flow
@@ -67,4 +72,4 @@ Integer `/`, `%`, `//` guard division by zero at runtime.
 
 ## Not compiled (see limitations)
 
-Generics, list/dict shared `ref` payloads, production GPU/SIMD for `@vectorize`, Python library interop — [Known limitations](known-limitations.md).
+Generics, production GPU/SIMD for `@vectorize`, Python library interop — [Known limitations](known-limitations.md).
