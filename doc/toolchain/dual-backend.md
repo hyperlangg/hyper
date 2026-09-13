@@ -18,6 +18,13 @@ Hyper is a **compiled language**. There is no interpreter and **no JIT**. Everyd
 
 `clang` is **required** for the LLVM AOT path. If it is missing, install LLVM/clang or switch to `--backend cranelift` (which can link with `gcc` / `cc` / MSVC `cl` as well).
 
+## Common gotchas
+
+- **`clang` is required** for the default LLVM path (`run`, `compile`, `--emit-exe` unless you pass `--backend cranelift`).
+- **`--emit-obj` is always Cranelift**, even when `HYPER_CODEGEN=llvm` or `--backend llvm`.
+- **`--backend` and `HYPER_CODEGEN`** choose the AOT backend for `run` / `compile` / `--emit-exe`. They do not change `--emit-obj` (always Cranelift) or `--emit-llvm` (IR dump only).
+- **`--emit-llvm` writes a `.ll` file and does not link** an executable. Pass that file to `clang` yourself if you want a binary.
+
 ## Commands
 
 | Command | Backend | Use when |
