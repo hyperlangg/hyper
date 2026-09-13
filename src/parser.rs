@@ -354,7 +354,11 @@ impl Parser {
         self.skip_layout_tokens();
         if self.check(&close) {
             self.advance();
-            return Ok(Expr::List(Vec::new()));
+            return Ok(if close == TokenType::RightBrace {
+                Expr::Dict(Vec::new())
+            } else {
+                Expr::List(Vec::new())
+            });
         }
 
         let first_key = self.expression()?;
