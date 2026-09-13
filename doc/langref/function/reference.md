@@ -22,7 +22,7 @@ Methods that mutate `self` conventionally take `ref self`. Constructors (`__init
 ## Notes
 
 - Passing a struct into a `ref` parameter shares the instance’s fields; it is not a defensive copy.
-- Shared `ref` into list/dict *payloads* is a known limitation — prefer struct fields or copied values when you need aliases.
+- List, array, and dict payloads are shared the same way: mutations through a `ref` alias are visible, and overwriting a slot does not free a nested list or dict another name still holds.
 - The argument at the call site should be a mutable location when the callee writes through `ref`.
 
 ## Example
