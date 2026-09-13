@@ -90,6 +90,18 @@ jobs:
           cargo run --quiet -- run ci/lang/ref_list_share.hyp
           cargo run --quiet -- compile ci/lang/ref_list_share.hyp
 
+      - name: Shared ref payload parity
+        run: |
+          cargo run --quiet -- run ci/lang/ref_share.hyp > "$HYPER_TMP/ref_run.txt"
+          cargo run --quiet -- compile ci/lang/ref_share.hyp > "$HYPER_TMP/ref_compile.txt"
+          cargo run --quiet -- compile ci/lang/ref_share.hyp --emit-exe "$HYPER_TMP/hyper_ref_share"
+          "$HYPER_TMP/run_exe.sh" "$HYPER_TMP/hyper_ref_share" > "$HYPER_TMP/ref_exe.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/ref_run.txt" "$HYPER_TMP/ref_compile.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/ref_run.txt" "$HYPER_TMP/ref_exe.txt"
+          grep -q "\[1, 9\]" "$HYPER_TMP/ref_run.txt"
+          grep -q "\[1, 2, 3\]" "$HYPER_TMP/ref_run.txt"
+          grep -q "\[1, 2, 9\]" "$HYPER_TMP/ref_run.txt"
+
       - name: File I/O smoke
         run: |
           cargo run --quiet -- compile ci/io/io_compile.hyp
@@ -159,6 +171,13 @@ jobs:
         run: |
           cargo run --quiet -- compile ci/smoke/smoke.hyp --emit-obj "$HYPER_TMP/hyper_smoke_obj.o"
           test -s "$HYPER_TMP/hyper_smoke_obj.o" || { echo "error: emit-obj produced empty object file !"; exit 1; }
+
+      - name: Compiler emit-llvm smoke
+        run: |
+          cargo run --quiet -- compile ci/smoke/smoke.hyp --emit-llvm "$HYPER_TMP/hyper_smoke.ll"
+          test -s "$HYPER_TMP/hyper_smoke.ll" || { echo "error: emit-llvm produced an empty file"; exit 1; }
+          grep -q "define" "$HYPER_TMP/hyper_smoke.ll"
+          grep -q "target triple" "$HYPER_TMP/hyper_smoke.ll"
 
       - name: Compiler emit-exe smoke
         run: |
@@ -280,3 +299,40 @@ jobs:
           "$HYPER_TMP/run_exe.sh" "$HYPER_TMP/hyper_bc" > "$HYPER_TMP/bc_exe.txt"
           "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/bc_run.txt" "$HYPER_TMP/bc_compile.txt"
           "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/bc_run.txt" "$HYPER_TMP/bc_exe.txt"
+
+      - name: range step output parity
+        run: |
+          cargo run --quiet -- run ci/control/range_step.hyp > "$HYPER_TMP/rs_run.txt"
+          cargo run --quiet -- compile ci/control/range_step.hyp > "$HYPER_TMP/rs_compile.txt"
+          cargo run --quiet -- compile ci/control/range_step.hyp --emit-exe "$HYPER_TMP/hyper_range_step"
+          "$HYPER_TMP/run_exe.sh" "$HYPER_TMP/hyper_range_step" > "$HYPER_TMP/rs_exe.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/rs_run.txt" "$HYPER_TMP/rs_compile.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/rs_run.txt" "$HYPER_TMP/rs_exe.txt"
+          grep -qx "0" "$HYPER_TMP/rs_run.txt"
+          grep -q "\[1, 4, 7\]" "$HYPER_TMP/rs_run.txt"
+          grep -q "\[5, 3, 1\]" "$HYPER_TMP/rs_run.txt"
+
+      - name: sorted and reversed output parity
+        run: |
+          cargo run --quiet -- run ci/collections/sorted_reversed.hyp > "$HYPER_TMP/sr_run.txt"
+          cargo run --quiet -- compile ci/collections/sorted_reversed.hyp > "$HYPER_TMP/sr_compile.txt"
+          cargo run --quiet -- compile ci/collections/sorted_reversed.hyp --emit-exe "$HYPER_TMP/hyper_sorted_reversed"
+          "$HYPER_TMP/run_exe.sh" "$HYPER_TMP/hyper_sorted_reversed" > "$HYPER_TMP/sr_exe.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/sr_run.txt" "$HYPER_TMP/sr_compile.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/sr_run.txt" "$HYPER_TMP/sr_exe.txt"
+          grep -q "\[1, 2, 3\]" "$HYPER_TMP/sr_run.txt"
+          grep -q "\[3, 2, 1\]" "$HYPER_TMP/sr_run.txt"
+          grep -q "\[a, b, c\]" "$HYPER_TMP/sr_run.txt"
+
+      - name: Unicode case output parity
+        run: |
+          cargo run --quiet -- run ci/collections/unicode_case.hyp > "$HYPER_TMP/uc_run.txt"
+          cargo run --quiet -- compile ci/collections/unicode_case.hyp > "$HYPER_TMP/uc_compile.txt"
+          cargo run --quiet -- compile ci/collections/unicode_case.hyp --emit-exe "$HYPER_TMP/hyper_unicode_case"
+          "$HYPER_TMP/run_exe.sh" "$HYPER_TMP/hyper_unicode_case" > "$HYPER_TMP/uc_exe.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/uc_run.txt" "$HYPER_TMP/uc_compile.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/uc_run.txt" "$HYPER_TMP/uc_exe.txt"
+          grep -q "STRASSE" "$HYPER_TMP/uc_run.txt"
+          grep -q "ПРИВЕТ" "$HYPER_TMP/uc_run.txt"
+          grep -qx "false" "$HYPER_TMP/uc_run.txt" && { echo "unicode case assertion failed"; exit 1; }
+          true
