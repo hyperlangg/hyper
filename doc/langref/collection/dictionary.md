@@ -17,7 +17,7 @@ You can also write an unannotated dict literal when inference is enough; the `Di
 - Length: `scores.len()` or `len(scores)`.
 - Keys: `scores.keys()` returns the key collection used by the runtime (order follows insertion on JSON load; see the JSON module docs for dump sorting).
 
-Dictionaries lower on the compile path. As with lists, deep shared `ref` into dict payloads is limited today — prefer copying values or restructuring when aliases would be required.
+Dictionaries lower on the compile path. A `ref` parameter shares the dict payload, so `d[k] = v` inside the callee is visible to the caller. Nested list and dict values stay alive if another name still holds them after an overwrite.
 
 ## Example
 
