@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "unicode_case.inc"
 
 enum { KIND_I64 = 0, KIND_STR = 2, KIND_NONE = 4, KIND_LIST = 5 };
 
@@ -86,16 +87,7 @@ static size_t utf8_len(const char *s) {
 }
 
 static char *ascii_map(const char *s, int (*fn)(int)) {
-    size_t n = strlen(s);
-    char *out = (char *)malloc(n + 1);
-    if (!out) {
-        return NULL;
-    }
-    for (size_t i = 0; i < n; i++) {
-        out[i] = (char)fn((unsigned char)s[i]);
-    }
-    out[n] = '\0';
-    return out;
+    return map_string_case(s, fn == toupper);
 }
 
 static char *trim_both(const char *s) {
@@ -141,64 +133,15 @@ static char *trim_end(const char *s) {
 }
 
 static char *capitalize_s(const char *s) {
-    size_t n = strlen(s);
-    char *out = (char *)malloc(n + 1);
-    if (!out) {
-        return NULL;
-    }
-    size_t i = 0;
-    if (n > 0) {
-        out[0] = (char)toupper((unsigned char)s[0]);
-        i = 1;
-        for (; i < n; i++) {
-            out[i] = (char)tolower((unsigned char)s[i]);
-        }
-    }
-    out[n] = '\0';
-    return out;
+    return capitalize_utf8(s);
 }
 
 static char *title_s(const char *s) {
-    size_t n = strlen(s);
-    char *out = (char *)malloc(n + 1);
-    if (!out) {
-        return NULL;
-    }
-    int cap = 1;
-    for (size_t i = 0; i < n; i++) {
-        unsigned char c = (unsigned char)s[i];
-        if (isspace(c) || ispunct(c)) {
-            out[i] = (char)c;
-            cap = 1;
-        } else if (cap) {
-            out[i] = (char)toupper(c);
-            cap = 0;
-        } else {
-            out[i] = (char)tolower(c);
-        }
-    }
-    out[n] = '\0';
-    return out;
+    return title_utf8(s);
 }
 
 static char *swapcase_s(const char *s) {
-    size_t n = strlen(s);
-    char *out = (char *)malloc(n + 1);
-    if (!out) {
-        return NULL;
-    }
-    for (size_t i = 0; i < n; i++) {
-        unsigned char c = (unsigned char)s[i];
-        if (islower(c)) {
-            out[i] = (char)toupper(c);
-        } else if (isupper(c)) {
-            out[i] = (char)tolower(c);
-        } else {
-            out[i] = (char)c;
-        }
-    }
-    out[n] = '\0';
-    return out;
+    return swapcase_utf8(s);
 }
 
 static char *pad_center(const char *s, size_t width, char fill) {
@@ -476,12 +419,13 @@ static int pred_isspace(const char *s) {
 
 static int pred_islower(const char *s) {
     int has = 0;
-    for (; *s; s++) {
-        unsigned char c = (unsigned char)*s;
-        if (isupper(c)) {
+    const char *p = s;
+    uint32_t cp;
+    while (utf8_next(&p, &cp)) {
+        if (is_upper_cp(cp)) {
             return 0;
         }
-        if (islower(c)) {
+        if (is_lower_cp(cp)) {
             has = 1;
         }
     }
@@ -490,12 +434,13 @@ static int pred_islower(const char *s) {
 
 static int pred_isupper(const char *s) {
     int has = 0;
-    for (; *s; s++) {
-        unsigned char c = (unsigned char)*s;
-        if (islower(c)) {
+    const char *p = s;
+    uint32_t cp;
+    while (utf8_next(&p, &cp)) {
+        if (is_lower_cp(cp)) {
             return 0;
         }
-        if (isupper(c)) {
+        if (is_upper_cp(cp)) {
             has = 1;
         }
     }
@@ -503,24 +448,25 @@ static int pred_isupper(const char *s) {
 }
 
 static int pred_istitle(const char *s) {
-    if (!*s) {
-        return 0;
-    }
     int saw = 0;
     int expect_upper = 1;
-    for (; *s; s++) {
-        unsigned char c = (unsigned char)*s;
-        if (isspace(c) || ispunct(c)) {
+    const char *p = s;
+    uint32_t cp;
+    if (!s || !*s) {
+        return 0;
+    }
+    while (utf8_next(&p, &cp)) {
+        if (!is_cased_cp(cp)) {
             expect_upper = 1;
             continue;
         }
-        if (isupper(c)) {
+        if (is_upper_cp(cp)) {
             if (!expect_upper) {
                 return 0;
             }
             saw = 1;
             expect_upper = 0;
-        } else if (islower(c)) {
+        } else if (is_lower_cp(cp)) {
             if (expect_upper) {
                 return 0;
             }
