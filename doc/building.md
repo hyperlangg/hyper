@@ -102,7 +102,7 @@ mdbook build
 
 ## What is not supported yet
 
-Hyper is under active development. See [Compiler known limitations](compiler/known-limitations.md) for remaining gaps (generics, shared list/dict `ref`, GPU/SIMD `@vectorize`, and related items).
+Hyper is under active development. See [Compiler known limitations](compiler/known-limitations.md) for remaining gaps (generics, GPU/SIMD `@vectorize`, and related items).
 
 Unsupported constructs are reported as **`SyntaxError: line N: …`** (or `IndentationError` / `RuntimeError` at runtime) before code generation starts when possible, and the compiler collects multiple lowering errors in one pass instead of stopping at the first one.
 
