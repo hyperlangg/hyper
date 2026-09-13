@@ -15,7 +15,7 @@ Lists are the flexible collection for everyday scripting-style code: mixed paylo
 - Grow: `items.append(value)`.
 - Indexing uses `items[i]` (zero-based), consistent with Python-like surface syntax.
 
-Lists lower on the compile path together with their common methods. Shared `ref` payloads into list/dict interiors remain a known limitation — see the compiler limitations notes if you need interior aliases.
+Lists lower on the compile path together with their common methods. A `ref` parameter shares the list payload: `append` and index assignment are visible through every alias. Overwriting a slot does not free a nested list or dict that another name still holds.
 
 ## Example
 
