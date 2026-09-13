@@ -40,6 +40,7 @@ typedef struct {
     RtValue *items;
     size_t len;
     size_t cap;
+    size_t refs;
 } RtList;
 
 typedef struct {
@@ -56,6 +57,7 @@ typedef struct {
     size_t cap;
     int32_t *slots;
     size_t nslots;
+    size_t refs;
 } RtDict;
 
 static uint64_t dict_hash(const char *s) {
@@ -207,58 +209,126 @@ char *hyper_rt_str_dup(const char *s) {
     return out;
 }
 
-static void free_rt_list(RtList *list) {
+static void destroy_list(RtList *list);
+static void destroy_dict(RtDict *dict);
+static void destroy_struct(RtStruct *st);
+
+void hyper_rt_retain(int64_t payload, int64_t kind) {
+    if (!payload) {
+        return;
+    }
+    if (kind == KIND_LIST) {
+        ((RtList *)(intptr_t)payload)->refs++;
+    } else if (kind == KIND_DICT) {
+        ((RtDict *)(intptr_t)payload)->refs++;
+    }
+}
+
+void hyper_rt_release(int64_t payload, int64_t kind) {
+    if (!payload) {
+        return;
+    }
+    if (kind == KIND_STR) {
+        hyper_rt_owned_str_release((void *)(intptr_t)payload);
+        return;
+    }
+    if (kind == KIND_LIST) {
+        RtList *list = (RtList *)(intptr_t)payload;
+        if (list->refs > 1) {
+            list->refs--;
+            return;
+        }
+        destroy_list(list);
+        return;
+    }
+    if (kind == KIND_DICT) {
+        RtDict *dict = (RtDict *)(intptr_t)payload;
+        if (dict->refs > 1) {
+            dict->refs--;
+            return;
+        }
+        destroy_dict(dict);
+        return;
+    }
+    if (kind == KIND_STRUCT) {
+        destroy_struct((RtStruct *)(intptr_t)payload);
+    }
+}
+
+/* Extra owner for a name binding. List/dict only — string slots are not
+ * refcounted, so releasing them here would free an alias. */
+void hyper_rt_share_bind(int64_t new_p, int64_t new_k, int64_t old_p, int64_t old_k) {
+    if (new_p == old_p && new_k == old_k) {
+        return;
+    }
+    if (new_k == KIND_LIST || new_k == KIND_DICT) {
+        hyper_rt_retain(new_p, new_k);
+    }
+    if (old_k == KIND_LIST || old_k == KIND_DICT) {
+        hyper_rt_release(old_p, old_k);
+    }
+}
+
+static void slot_store(RtValue *slot, int64_t payload, int64_t kind) {
+    if (slot->payload == payload && slot->kind == kind) {
+        return;
+    }
+    hyper_rt_retain(payload, kind);
+    RtValue old = *slot;
+    slot->kind = kind;
+    slot->payload = payload;
+    hyper_rt_release(old.payload, old.kind);
+}
+
+static void destroy_list(RtList *list) {
     if (!list) {
         return;
     }
     for (size_t i = 0; i < list->len; i++) {
-        free_rt_value(list->items[i]);
+        hyper_rt_release(list->items[i].payload, list->items[i].kind);
     }
     free(list->items);
     free(list);
 }
 
-static void free_rt_dict(RtDict *dict) {
+static void destroy_dict(RtDict *dict) {
     if (!dict) {
         return;
     }
     for (size_t i = 0; i < dict->len; i++) {
         free(dict->entries[i].key);
-        free_rt_value(dict->entries[i].value);
+        hyper_rt_release(dict->entries[i].value.payload, dict->entries[i].value.kind);
     }
     free(dict->entries);
     free(dict->slots);
     free(dict);
 }
 
-static void free_rt_struct(RtStruct *st) {
+static void destroy_struct(RtStruct *st) {
     if (!st) {
         return;
     }
     for (size_t i = 0; i < st->len; i++) {
-        free_rt_value(st->fields[i]);
+        hyper_rt_release(st->fields[i].payload, st->fields[i].kind);
     }
     free(st->fields);
     free(st);
 }
 
+static void free_rt_list(RtList *list) {
+    hyper_rt_release((int64_t)(intptr_t)list, KIND_LIST);
+}
+
+static void free_rt_dict(RtDict *dict) {
+    hyper_rt_release((int64_t)(intptr_t)dict, KIND_DICT);
+}
+
+static void free_rt_struct(RtStruct *st) {
+    hyper_rt_release((int64_t)(intptr_t)st, KIND_STRUCT);
+}
+
 static void free_rt_value(RtValue v) {
-    switch (v.kind) {
-    case KIND_STR:
-        hyper_rt_owned_str_release((void *)(intptr_t)v.payload);
-        break;
-    case KIND_LIST:
-        free_rt_list((RtList *)(intptr_t)v.payload);
-        break;
-    case KIND_DICT:
-        free_rt_dict((RtDict *)(intptr_t)v.payload);
-        break;
-    case KIND_STRUCT:
-        free_rt_struct((RtStruct *)(intptr_t)v.payload);
-        break;
-    default:
-        break;
-    }
+    hyper_rt_release(v.payload, v.kind);
 }
 
 extern int64_t __main__(void);
@@ -524,6 +594,10 @@ static void format_value(const RtValue *v) {
 
 int64_t hyper_rt_list_new(void) {
     RtList *list = (RtList *)calloc(1, sizeof(RtList));
+    if (!list) {
+        return 0;
+    }
+    list->refs = 1;
     return (int64_t)(intptr_t)list;
 }
 
@@ -544,6 +618,7 @@ void hyper_rt_list_push(int64_t list_h, int64_t value, int64_t kind) {
     list->items[list->len].kind = kind;
     list->items[list->len].payload = value;
     list->len++;
+    hyper_rt_retain(value, kind);
 }
 
 void hyper_rt_print_list(int64_t list_h) {
@@ -556,6 +631,10 @@ void hyper_rt_print_list(int64_t list_h) {
 
 int64_t hyper_rt_dict_new(void) {
     RtDict *dict = (RtDict *)calloc(1, sizeof(RtDict));
+    if (!dict) {
+        return 0;
+    }
+    dict->refs = 1;
     return (int64_t)(intptr_t)dict;
 }
 
@@ -623,9 +702,7 @@ void hyper_rt_list_set(int64_t list_h, int64_t index, int64_t value, int64_t kin
     if (index < 0 || (size_t)index >= list->len) {
         return;
     }
-    free_rt_value(list->items[index]);
-    list->items[index].kind = kind;
-    list->items[index].payload = value;
+    slot_store(&list->items[index], value, kind);
 }
 
 int64_t hyper_rt_dict_get(int64_t dict_h, int64_t key, int64_t key_kind, int64_t *out_kind) {
@@ -675,9 +752,7 @@ void hyper_rt_dict_set(int64_t dict_h, int64_t key, int64_t key_kind, int64_t va
     int32_t idx = dict_lookup(dict, k);
     if (idx >= 0) {
         free(owned);
-        free_rt_value(dict->entries[idx].value);
-        dict->entries[idx].value.kind = val_kind;
-        dict->entries[idx].value.payload = value;
+        slot_store(&dict->entries[idx].value, value, val_kind);
         return;
     }
     /* Insert path still needs an owned key copy. */
@@ -699,7 +774,9 @@ void hyper_rt_dict_set(int64_t dict_h, int64_t key, int64_t key_kind, int64_t va
         dict->len -= 1;
         free(owned);
         dict->entries[dict->len].key = NULL;
+        return;
     }
+    hyper_rt_retain(value, val_kind);
 }
 
 int64_t hyper_rt_index_get(
@@ -1147,9 +1224,7 @@ void hyper_rt_struct_set(int64_t obj, int64_t field, int64_t value, int64_t kind
     if (field < 0 || (size_t)field >= st->len) {
         return;
     }
-    free_rt_value(st->fields[field]);
-    st->fields[field].kind = kind;
-    st->fields[field].payload = value;
+    slot_store(&st->fields[field], value, kind);
 }
 
 void hyper_rt_print_struct(int64_t obj) {
