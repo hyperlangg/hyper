@@ -1,0 +1,31 @@
+fn bump(ref xs):
+    xs.append(9)
+
+fn put(ref d, key, val):
+    d[key] = val
+
+let mut items = [1]
+bump(items)
+print(items)
+
+let mut nested = [1]
+let mut outer = [nested]
+let alias = outer[0]
+alias.append(2)
+print(outer)
+
+outer[0] = [9]
+alias.append(3)
+print(alias)
+print(outer)
+
+let mut scores = {"math": 1}
+put(scores, "math", 2)
+put(scores, "phys", 3)
+print(scores["math"])
+print(scores["phys"])
+print(scores)
+
+let mut arr: Array[int32] = [1, 2]
+bump(arr)
+print(arr)
