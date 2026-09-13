@@ -132,6 +132,14 @@ jobs:
 
       - name: Compiler dict hash-map smoke
         run: cargo run --quiet -- compile ci/collections/dict_compile.hyp
+
+      - name: Empty collections smoke
+        run: |
+          printf '{}\n0\n[]\n' > "$HYPER_TMP/empty_expected.txt"
+          cargo run --quiet -- run ci/collections/empty_collections.hyp > "$HYPER_TMP/empty_run.txt"
+          cargo run --quiet -- compile ci/collections/empty_collections.hyp > "$HYPER_TMP/empty_compile.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/empty_expected.txt" "$HYPER_TMP/empty_run.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/empty_expected.txt" "$HYPER_TMP/empty_compile.txt"
       - name: Compiler builtins smoke
         run: cargo run --quiet -- compile ci/collections/builtins_compile.hyp
 
