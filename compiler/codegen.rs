@@ -219,6 +219,7 @@ struct RuntimeIds {
     handle_leave: FuncId,
     raise_fn: FuncId,
     parallel_for: FuncId,
+    share_bind: FuncId,
 }
 
 fn make_flags(is_pic: bool) -> Result<settings::Flags, String> {
@@ -610,6 +611,16 @@ fn declare_runtime<M: Module>(module: &mut M) -> Result<RuntimeIds, String> {
             .declare_function("hyper_rt_parallel_for", Linkage::Import, &sig)
             .map_err(|e| e.to_string())?
     };
+    let share_bind = {
+        let mut sig = module.make_signature();
+        sig.params.push(AbiParam::new(types::I64));
+        sig.params.push(AbiParam::new(types::I64));
+        sig.params.push(AbiParam::new(types::I64));
+        sig.params.push(AbiParam::new(types::I64));
+        module
+            .declare_function("hyper_rt_share_bind", Linkage::Import, &sig)
+            .map_err(|e| e.to_string())?
+    };
     Ok(RuntimeIds {
         print_i64,
         print_f64,
@@ -734,6 +745,7 @@ fn declare_runtime<M: Module>(module: &mut M) -> Result<RuntimeIds, String> {
         handle_leave,
         raise_fn,
         parallel_for,
+        share_bind,
     })
 }
 
@@ -796,6 +808,13 @@ fn kind_operand(
 
 fn named_kind(map: &HashMap<String, ValueKind>, name: &str) -> ValueKind {
     map.get(name).copied().unwrap_or(ValueKind::I64)
+}
+
+fn needs_share_bind(kind: ValueKind) -> bool {
+    matches!(
+        kind,
+        ValueKind::List | ValueKind::Dict | ValueKind::Dynamic
+    )
 }
 
 /// Names that may hold more than one runtime kind (or are function params).
@@ -1712,6 +1731,15 @@ fn define_function<M: Module>(
             named_kind_vars.insert(name.clone(), kv);
             named_kinds.insert(name.clone(), ValueKind::Dynamic);
         }
+        if !params.is_empty() {
+            let fref = module.declare_func_in_func(runtime.share_bind, &mut builder.func);
+            let zero = builder.ins().iconst(types::I64, 0);
+            for name in params {
+                let payload = builder.use_var(named_vars[name]);
+                let kind = builder.use_var(named_kind_vars[name]);
+                builder.ins().call(fref, &[payload, kind, zero, zero]);
+            }
+        }
 
         let ensure_val = |id: ValueId,
                           builder: &mut FunctionBuilder,
@@ -1956,6 +1984,20 @@ fn define_function<M: Module>(
                 }
                 IrInstr::Store { name, value } => {
                     let val = builder.use_var(value_vars[value]);
+                    let vk = kind_of(&value_kinds, *value);
+                    let old_k = named_kind(&named_kinds, name);
+                    if needs_share_bind(vk) || needs_share_bind(old_k) {
+                        let old = builder.use_var(named_vars[name]);
+                        let new_kind = kind_operand(&mut builder, &kind_vars, vk, *value);
+                        let old_kind = if let Some(kv) = named_kind_vars.get(name) {
+                            builder.use_var(*kv)
+                        } else {
+                            builder.ins().iconst(types::I64, old_k.as_i64())
+                        };
+                        let fref =
+                            module.declare_func_in_func(runtime.share_bind, &mut builder.func);
+                        builder.ins().call(fref, &[val, new_kind, old, old_kind]);
+                    }
                     builder.def_var(named_vars[name], val);
                     let vk = kind_of(&value_kinds, *value);
 
