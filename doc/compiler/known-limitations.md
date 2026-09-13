@@ -33,12 +33,12 @@ A function body does not inherit the loop around its declaration, so a `break` i
 
 - Generics (`make_it_speak[T: Speaker]` in docs is aspirational)
 - Production GPU / SIMD codegen for `@vectorize`
-- Full reclaim of every temporary string on the compile path (containers free overwritten elements; file/mmap handles free on close)
+- Full reclaim of every temporary string on the compile path (containers free overwritten elements when nothing else still holds them; file/mmap handles free on close)
 - `try` / `except` — Hyper uses explicit `raise` / `raises` / `handle` instead (see [Errors](../errors/overview.md))
 
 ## String methods
 
-String methods share one runtime on **`run` and `compile`**. `split()` / `rsplit()` with no separator follow Python whitespace rules. `--emit-exe` case transforms are ASCII-oriented in the C runtime; the Rust reference runtime uses full Unicode case mapping.
+String methods share one runtime on **`run` and `compile`**. `split()` / `rsplit()` with no separator follow Python whitespace rules. AOT case transforms (`upper`, `lower`, `capitalize`, `title`, `swapcase`, and the `is*` case predicates) are Unicode-aware for ASCII, Latin-1, Latin Extended-A, Cyrillic, Greek, and the `ß` / `İ` / `ı` expansions. They are not a full Unicode case-folding database.
 
 ## Struct method resolution
 
