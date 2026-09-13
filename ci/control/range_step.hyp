@@ -1,0 +1,6 @@
+# range(start, end, step) is a builtin that returns a list; for-in walks it.
+for i in range(0, 6, 2):
+    print(i)
+
+print(range(1, 10, 3))
+print(range(5, 0, -2))
