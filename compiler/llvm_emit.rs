@@ -142,6 +142,7 @@ declare i64 @hyper_rt_list_new()
 declare void @hyper_rt_list_push(i64, i64, i64)
 declare i64 @hyper_rt_list_get(i64, i64, i64)
 declare void @hyper_rt_list_set(i64, i64, i64, i64)
+declare void @hyper_rt_share_bind(i64, i64, i64, i64)
 declare i64 @hyper_rt_list_len(i64)
 declare i64 @hyper_rt_dict_new()
 declare void @hyper_rt_dict_push(i64, i64, i64, i64, i64)
@@ -566,6 +567,9 @@ impl FuncEmitter {
                 self.emit(&format!("store i64 %arg_k{i}, ptr {ks}, align 8"));
             }
             self.named_kinds.insert(name.clone(), ValueKind::Dynamic);
+            self.emit(&format!(
+                "call void @hyper_rt_share_bind(i64 %arg_p{i}, i64 %arg_k{i}, i64 0, i64 0)"
+            ));
         }
 
         for (idx, instr) in body.iter().enumerate() {
@@ -625,6 +629,28 @@ impl FuncEmitter {
                 }
                 IrInstr::Store { name, value } => {
                     let val = self.load_val(*value);
+                    let vk = self.kind_of(*value);
+                    let old_k = self.named_kind(name);
+                    if matches!(
+                        vk,
+                        ValueKind::List | ValueKind::Dict | ValueKind::Dynamic
+                    ) || matches!(
+                        old_k,
+                        ValueKind::List | ValueKind::Dict | ValueKind::Dynamic
+                    ) {
+                        let old = self.load_named(name);
+                        let new_kind = self.kind_operand(vk, *value);
+                        let old_kind = if let Some(ks) = self.named_kind_slots.get(name).cloned() {
+                            let k = self.tmp();
+                            self.emit(&format!("{k} = load i64, ptr {ks}, align 8"));
+                            k
+                        } else {
+                            format!("{}", old_k.as_i64())
+                        };
+                        self.emit(&format!(
+                            "call void @hyper_rt_share_bind(i64 {val}, i64 {new_kind}, i64 {old}, i64 {old_kind})"
+                        ));
+                    }
                     self.store_named(name, &val);
                     let vk = self.kind_of(*value);
                     let merged = match self.named_kinds.get(name) {
