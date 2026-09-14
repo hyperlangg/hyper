@@ -2,7 +2,7 @@
 
 Hyper is a **compiled** programming language for teams that want **Python’s ergonomics** with **systems-level speed**, **hardware utilization**, and a toolchain aimed at **AI and large-scale data**.
 
-This page is Hyper’s **official product description**. Implementation details and the current v0.1 gap list live in [First release scope](first-release-scope.md) and [Known limitations](../compiler/known-limitations.md).
+This page is Hyper’s **official product description**. Implementation details and the current gap list live in [Known limitations](../compiler/known-limitations.md).
 
 ## Full Python compatibility (design goal)
 
@@ -11,7 +11,7 @@ Hyper’s syntax is **very close to Python**: indentation-based blocks, familiar
 - Existing Python scripts can be ported with minimal edits.
 - Python ecosystems — including libraries such as **NumPy** — can run in the **Hyper environment** without rewriting the mental model.
 
-v0.1 does not claim every Python feature or every third-party wheel yet; the **direction** is unambiguous: Hyper should feel like Python that compiles to native code.
+Hyper does not claim every Python feature or every third-party wheel yet; the **direction** is unambiguous: Hyper should feel like Python that compiles to native code.
 
 ## Maximum speed and efficiency
 
@@ -67,4 +67,4 @@ The goal is **safe concurrency** plus **predictable performance**, not “fast b
 2. **Next** — Deeper Python/library interop, real `@parallel` codegen, GPU backends.
 3. **Long term** — Hyper as the default runtime for **Python-compatible, AI-scale, native-speed** code.
 
-See [First release scope](first-release-scope.md) for the v0.1 checklist.
+See [Known limitations](../compiler/known-limitations.md) for what is not implemented yet.

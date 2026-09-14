@@ -66,7 +66,7 @@ with open_mmap("huge_model.bin") as mapped_file:
     let chunk = mapped_file.read_chunk(0, 1024)
 ```
 
-Offsets past EOF return an empty string. Compiler support is not planned for v0.1.
+Offsets past EOF return an empty string.
 
 Sample: `doc/examples/file_handling/mmap.hyp`.
 

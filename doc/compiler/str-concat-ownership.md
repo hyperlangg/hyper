@@ -236,7 +236,7 @@ Same as IO: `cstr_payload` / `rt_strdup` go through `hyper_rt_str_dup`.
 
 - No IR consume flags, no new Hyper syntax, no `str_build` opcode.
 - No free on every `Store` (would break `let t = s` pointer aliasing; out of scope vs full GC).
-- No interpreter path (removed in v0.3.0).
+- No interpreter path (the interpreter was removed).
 
 Overwriting a local with a **fresh** string that is not `s = s + …` still does not free the previous local (`last = f"n={i}!"` leaks the previous `last` only, not a concat chain). That is linear leftovers, not the quadratic prefix leak.
 
