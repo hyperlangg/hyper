@@ -4,11 +4,7 @@ The repository ships an **AOT compiler** (`hyper run` / `hyper compile`) with a 
 
 ## Quick start
 
-```bash
-cargo run -- run your_file.hyp
-# same AOT path (temp exe + execute):
-cargo run -- compile your_file.hyp
-```
+Clone, build, and run a first program: [Quickstart](quickstart.md).
 
 Build instructions, flags, and mdBook setup: [Building from source](building.md).
 
@@ -20,6 +16,7 @@ Prose lives under `doc/` and is published as this mdBook. **Runnable Hyper code*
 doc/
 ├── readme.md                 Entry point (this page)
 ├── SUMMARY.md                mdBook sidebar / table of contents
+├── quickstart.md             Clone, build, run, emit flags
 ├── building.md               Clone, build, CLI, mdBook
 ├── COMMIT_CONVENTION.md      Contributor commit prefixes
 │
@@ -39,6 +36,7 @@ Browse chapters from the sidebar ([`SUMMARY.md`](SUMMARY.md)) or use the map bel
 | Section | Document | What you will find |
 |:--------|:---------|:-------------------|
 | Introduction | [readme.md](readme.md) | Orientation, layout, quick start |
+| Quickstart | [quickstart.md](quickstart.md) | Clone, build, run, and emit flags |
 | Building | [building.md](building.md) | Prerequisites, `cargo build`, CLI subcommands, mdBook |
 | Why Hyper | [overview/why-hyper.md](overview/why-hyper.md) | Official vision: Python compat, speed, AI, safety |
 | Dual backend | [toolchain/dual-backend.md](toolchain/dual-backend.md) | LLVM (default AOT) vs Cranelift (`--emit-obj` / opt-in) |
