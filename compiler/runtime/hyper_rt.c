@@ -681,17 +681,35 @@ void hyper_rt_print_value(int64_t payload, int64_t kind) {
     format_value(&v);
 }
 
+static int normalize_list_index(int64_t index, size_t len, size_t *out_index) {
+    if (index >= 0) {
+        size_t pos = (size_t)index;
+        if (pos >= len) {
+            return 0;
+        }
+        *out_index = pos;
+        return 1;
+    }
+    uint64_t from_end = (uint64_t)(-(index + 1)) + 1;
+    if (from_end > len) {
+        return 0;
+    }
+    *out_index = len - (size_t)from_end;
+    return 1;
+}
+
 int64_t hyper_rt_list_get(int64_t list_h, int64_t index, int64_t *out_kind) {
     if (!list_h || !out_kind) {
         return 0;
     }
     const RtList *list = (const RtList *)(intptr_t)list_h;
-    if (index < 0 || (size_t)index >= list->len) {
+    size_t pos;
+    if (!normalize_list_index(index, list->len, &pos)) {
         *out_kind = KIND_NONE;
         return 0;
     }
-    *out_kind = list->items[index].kind;
-    return list->items[index].payload;
+    *out_kind = list->items[pos].kind;
+    return list->items[pos].payload;
 }
 
 void hyper_rt_list_set(int64_t list_h, int64_t index, int64_t value, int64_t kind) {
@@ -699,10 +717,11 @@ void hyper_rt_list_set(int64_t list_h, int64_t index, int64_t value, int64_t kin
         return;
     }
     RtList *list = (RtList *)(intptr_t)list_h;
-    if (index < 0 || (size_t)index >= list->len) {
+    size_t pos;
+    if (!normalize_list_index(index, list->len, &pos)) {
         return;
     }
-    slot_store(&list->items[index], value, kind);
+    slot_store(&list->items[pos], value, kind);
 }
 
 int64_t hyper_rt_dict_get(int64_t dict_h, int64_t key, int64_t key_kind, int64_t *out_kind) {
