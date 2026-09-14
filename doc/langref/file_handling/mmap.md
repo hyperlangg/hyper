@@ -11,7 +11,7 @@ with open_mmap("huge_ai_model.bin") as mapped_file:
 
 ## Compile path
 
-Memory-mapped open and `read_chunk` lower on the compile path (JIT and `--emit-exe`), alongside ordinary file I/O. Prefer `open` / `read` for small text files; reserve `open_mmap` for large, offset-oriented access.
+Memory-mapped open and `read_chunk` lower on the AOT compile path (`run`, `compile`, and `--emit-exe`), alongside ordinary file I/O. Prefer `open` / `read` for small text files; reserve `open_mmap` for large, offset-oriented access.
 
 ## Notes
 
