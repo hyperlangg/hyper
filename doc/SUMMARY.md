@@ -8,6 +8,7 @@
 
 # Toolchain
 
+- [Quickstart](quickstart.md)
 - [Building from source](building.md)
 - [Compiler-only toolchain](toolchain/dual-backend.md)
 
