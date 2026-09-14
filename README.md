@@ -5,12 +5,11 @@
     <img alt="The Hyper Programming Language" src="https://github.com/user-attachments/assets/0427f9c4-be17-4784-a3e5-8ac388b9ee9b" width="50%">
   </picture>
 
-  [Quickstart] | [Getting started] | [Documentation] | [Contributing]
+  [Getting started] | [Documentation] | [Contributing]
 </div>
 
 This is the main source code repository for **Hyper**. It currently contains the native compiler, and documentation.
 
-[Quickstart]: #quickstart
 [Getting Started]: https://github.com/hyperlangg/hyper/blob/main/doc/building.md
 [Documentation]: https://github.com/hyperlangg/hyper/tree/main/doc
 [Contributing]: CONTRIBUTING.md
@@ -33,29 +32,6 @@ Hyper exists so teams can keep a **Python-shaped** workflow while getting **syst
 - **Maximum speed and efficiency:** Native AOT compilation (default Hyper-IR → LLVM IR → clang; Cranelift for `--emit-obj` / opt-in AOT), buffered I/O, and low runtime overhead — built to rival systems languages on performance-critical code.
 - **Built for artificial intelligence:** First-class focus on training workloads, tensor-style numerics, and processing very large datasets without interpreter bottlenecks.
 - **Security and modern architecture:** Memory-safe implementation strategy, clear error reporting, and parallel execution as the platform matures.
-
-## Quickstart
-
-Building from source is the toolchain guide (prerequisites, `cargo build`, emit flags). Quickstart is only how to run a program.
-
-You need [Rust](https://www.rust-lang.org/tools/install) and `clang` (default AOT). Then:
-
-```bash
-git clone https://github.com/hyperlangg/hyper.git
-cd hyper
-```
-
-`hello.hyp`:
-
-```hyper
-print("Hello, Hyper")
-```
-
-```bash
-cargo run -- run hello.hyp
-```
-
-`hyper compile hello.hyp` uses the same path. Flags, a release binary, and Cranelift are in [Building from source](doc/building.md).
 
 ## Building from source
 
