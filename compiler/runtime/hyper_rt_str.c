@@ -90,15 +90,19 @@ static char *ascii_map(const char *s, int (*fn)(int)) {
     return map_string_case(s, fn == toupper);
 }
 
+static int is_ascii_whitespace(unsigned char c) {
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\v' || c == '\f';
+}
+
 static char *trim_both(const char *s) {
-    while (*s && isspace((unsigned char)*s)) {
+    while (*s && is_ascii_whitespace((unsigned char)*s)) {
         s++;
     }
     if (!*s) {
         return rt_strdup("");
     }
     const char *end = s + strlen(s) - 1;
-    while (end > s && isspace((unsigned char)*end)) {
+    while (end > s && is_ascii_whitespace((unsigned char)*end)) {
         end--;
     }
     size_t len = (size_t)(end - s + 1);
@@ -112,7 +116,7 @@ static char *trim_both(const char *s) {
 }
 
 static char *trim_start(const char *s) {
-    while (*s && isspace((unsigned char)*s)) {
+    while (*s && is_ascii_whitespace((unsigned char)*s)) {
         s++;
     }
     return rt_strdup(s);
@@ -120,7 +124,7 @@ static char *trim_start(const char *s) {
 
 static char *trim_end(const char *s) {
     size_t n = strlen(s);
-    while (n > 0 && isspace((unsigned char)s[n - 1])) {
+    while (n > 0 && is_ascii_whitespace((unsigned char)s[n - 1])) {
         n--;
     }
     char *out = (char *)malloc(n + 1);
@@ -236,14 +240,14 @@ static int64_t push_parts(char **parts, size_t n) {
 static int64_t split_ws(const char *s) {
     int64_t list = hyper_rt_list_new();
     while (*s) {
-        while (*s && isspace((unsigned char)*s)) {
+        while (*s && is_ascii_whitespace((unsigned char)*s)) {
             s++;
         }
         if (!*s) {
             break;
         }
         const char *start = s;
-        while (*s && !isspace((unsigned char)*s)) {
+        while (*s && !is_ascii_whitespace((unsigned char)*s)) {
             s++;
         }
         size_t len = (size_t)(s - start);
@@ -410,7 +414,7 @@ static int pred_isspace(const char *s) {
         return 0;
     }
     for (; *s; s++) {
-        if (!isspace((unsigned char)*s)) {
+        if (!is_ascii_whitespace((unsigned char)*s)) {
             return 0;
         }
     }
