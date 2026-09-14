@@ -4,14 +4,12 @@ Clone the repository and build the toolchain with Rust. See [CHANGELOG.md](../CH
 
 Everything lives in a **single Cargo package** (`hyper`). The `src/` tree holds the language frontend and compiler:
 
-| Module / path | Role |
-|---------------|------|
-| `scanner.rs`, `parser.rs`, `ast.rs`, `driver.rs` | Lexer, parser, AST, program driver |
-| `semantic.rs` | Type checker |
-| `environment.rs` | Host `HyperValue` bridge for JSON (not an execution backend) |
-| `fileio.rs`, `json.rs`, `module.rs` | Shared I/O / JSON / module resolution used by the compile runtime |
-| `compiler/` (`ir`, `lowering`, `codegen`, `llvm_emit`, `runtime`) | IR, LLVM + Cranelift AOT codegen, C runtime for linking |
-| `main.rs` | CLI (`tokenize`, `parse`, `run`, `typecheck`, `compile`, …) |
+- `scanner.rs`, `parser.rs`, `ast.rs`, `driver.rs` — lexer, parser, AST, program driver.
+- `semantic.rs` — type checker.
+- `environment.rs` — host `HyperValue` bridge for JSON (not an execution backend).
+- `fileio.rs`, `json.rs`, `module.rs` — shared I/O, JSON, and module resolution used by the compile runtime.
+- `compiler/` (`ir`, `lowering`, `codegen`, `llvm_emit`, `runtime`) — IR, LLVM + Cranelift AOT codegen, C runtime for linking.
+- `main.rs` — CLI (`tokenize`, `parse`, `run`, `typecheck`, `compile`, …).
 
 ## Prerequisites
 
@@ -23,11 +21,9 @@ Hyper targets **Linux, macOS, and Windows** equally. WSL is **not** required on 
 
 ### C toolchain
 
-| Platform | Typical compilers |
-|----------|-------------------|
-| Linux | `clang` (**required** for default LLVM AOT); `gcc`/`cc` OK for Cranelift AOT |
-| macOS | `clang` via Xcode Command Line Tools |
-| Windows | `clang` / `clang-cl` for LLVM AOT; MinGW `gcc` or MSVC `cl` also work for Cranelift AOT |
+- **Linux** — `clang` (required for default LLVM AOT); `gcc`/`cc` are fine for Cranelift AOT.
+- **macOS** — `clang` via Xcode Command Line Tools.
+- **Windows** — `clang` / `clang-cl` for LLVM AOT; MinGW `gcc` or MSVC `cl` also work for Cranelift AOT.
 
 Override the linker/compiler with `CC` where applicable. Select the AOT backend with `HYPER_CODEGEN=llvm|cranelift` or `--backend llvm|cranelift` (default **llvm**). See [Dual backends](toolchain/dual-backend.md).
 
