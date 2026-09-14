@@ -1,6 +1,6 @@
 # Hyper
 
-The repository ships an **AOT compiler** (`hyper run` / `hyper compile`) with a Rust-like dual backend (default **LLVM IR + clang**; **Cranelift** for objects / opt-in AOT) and this mdBook. Hyper is **compiler-only** — there is no interpreter. v0.1 targets real small programs on the compile path; the [full vision](overview/why-hyper.md) describes where Hyper is going.
+The repository ships an **AOT compiler** (`hyper run` / `hyper compile`) with a Rust-like dual backend (default **LLVM IR + clang**; **Cranelift** for objects / opt-in AOT) and this mdBook. Hyper is **compiler-only** — there is no interpreter. The compile path targets real small programs; the [full vision](overview/why-hyper.md) describes where Hyper is going.
 
 ## Quick start
 
@@ -23,7 +23,7 @@ doc/
 ├── building.md               Clone, build, CLI, mdBook
 ├── COMMIT_CONVENTION.md      Contributor commit prefixes
 │
-├── overview/                 Project goals and release criteria
+├── overview/                 Project goals
 ├── toolchain/                run vs compile today
 ├── langref/                  Written language reference (mirrors examples/)
 ├── compiler/                 Compile pipeline, support matrix, gaps
@@ -41,7 +41,6 @@ Browse chapters from the sidebar ([`SUMMARY.md`](SUMMARY.md)) or use the map bel
 | Introduction | [readme.md](readme.md) | Orientation, layout, quick start |
 | Building | [building.md](building.md) | Prerequisites, `cargo build`, CLI subcommands, mdBook |
 | Why Hyper | [overview/why-hyper.md](overview/why-hyper.md) | Official vision: Python compat, speed, AI, safety |
-| First release | [overview/first-release-scope.md](overview/first-release-scope.md) | v0.1 readiness checklist |
 | Dual backend | [toolchain/dual-backend.md](toolchain/dual-backend.md) | LLVM (default AOT) vs Cranelift (`--emit-obj` / opt-in) |
 | Language reference | [langref/README.md](langref/README.md) | Written reference for every language topic (mirrors `examples/`) |
 | Compiler overview | [compiler/overview.md](compiler/overview.md) | AST → IR → LLVM/Cranelift pipeline; flags |

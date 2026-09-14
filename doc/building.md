@@ -1,6 +1,6 @@
 # Building from source
 
-Hyper **v0.1.0** is the first public release. Clone the repository and build the reference toolchain with Rust. See [CHANGELOG.md](../CHANGELOG.md) for what shipped.
+Clone the repository and build the toolchain with Rust. See [CHANGELOG.md](../CHANGELOG.md) for what shipped.
 
 Everything lives in a **single Cargo package** (`hyper`). The `src/` tree holds the language frontend and compiler:
 

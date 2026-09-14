@@ -5,7 +5,6 @@
 # Overview
 
 - [Why Hyper](overview/why-hyper.md)
-- [First release scope](overview/first-release-scope.md)
 
 # Toolchain
 
