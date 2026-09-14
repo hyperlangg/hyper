@@ -10,7 +10,7 @@
 
 This is the main source code repository for **Hyper**. It currently contains the native compiler, and documentation.
 
-[Getting Started]: https://github.com/hyperlangg/hyper/blob/main/doc/building.md
+[Getting Started]: doc/quickstart.md
 [Documentation]: https://github.com/hyperlangg/hyper/tree/main/doc
 [Contributing]: CONTRIBUTING.md
 
@@ -33,9 +33,13 @@ Hyper exists so teams can keep a **Python-shaped** workflow while getting **syst
 - **Built for artificial intelligence:** First-class focus on training workloads, tensor-style numerics, and processing very large datasets without interpreter bottlenecks.
 - **Security and modern architecture:** Memory-safe implementation strategy, clear error reporting, and parallel execution as the platform matures.
 
+## Quickstart
+
+Clone, build, and run a first program — commands, flags, and what each one does are in [Quickstart](doc/quickstart.md).
+
 ## Building from source
 
-Clone, build, and run the toolchain from source — see [Building from source](doc/building.md).
+Prerequisites, Windows/MSVC notes, and the module map are in [Building from source](doc/building.md).
 
 ## Contributing
 
