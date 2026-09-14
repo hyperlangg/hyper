@@ -2,7 +2,7 @@
 
 Hyper's file syntax follows Python. Underneath, handles are **buffered streams**: one OS file descriptor plus a 64 KB read-ahead buffer and a 64 KB write-behind buffer, so tight read/write loops amortize syscalls.
 
-**Compiler status:** file I/O, `with`, and file methods lower on the compile path (JIT and `--emit-exe`). See [Compiler supported features](../compiler/supported-features.md).
+**Compiler status:** file I/O, `with`, and file methods lower on the AOT compile path (`run`, `compile`, and `--emit-exe`). See [Compiler supported features](../compiler/supported-features.md).
 
 ## Opening a file
 

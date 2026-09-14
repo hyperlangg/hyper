@@ -13,7 +13,7 @@ User programs should use **`print()`** for normal output. Compiler and runtime d
 
 - Values are converted for display on the compile path (strings, numbers, booleans, collections, and so on).
 - Prefer clear `print` calls in examples and tools; keep error signaling to `raise` / the runtime.
-- `print` lowers on both JIT and `--emit-exe` paths.
+- `print` lowers on the AOT compile path (`run`, `compile`, and `--emit-exe`).
 
 ## Example
 

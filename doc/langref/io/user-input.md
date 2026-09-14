@@ -11,7 +11,7 @@ The returned value is a string (without the trailing newline). Convert with `int
 
 ## Notes
 
-- `input` lowers on the compile path (JIT and AOT).
+- `input` lowers on the AOT compile path (`run`, `compile`, and `--emit-exe`).
 - Interactive prompts need a real terminal or piped stdin; CI samples feed input where required.
 - For file-based input, prefer `open` / `with` rather than reading everything through `input`.
 
