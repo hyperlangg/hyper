@@ -28,7 +28,7 @@ body:
     attributes:
       label: Hyper version or commit
       description: Output of `hyper --version`, `cargo run -- --version`, or a git commit SHA.
-      placeholder: "0.1.0 or abc1234"
+      placeholder: "release tag or commit SHA"
     validations:
       required: true
 
