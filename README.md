@@ -39,7 +39,7 @@ Clone, build, and run a first program — commands, flags, and what each one doe
 
 ## Building from source
 
-Prerequisites, Windows/MSVC notes, and the module map are in [Building from source](doc/building.md).
+Prerequisites, MSVC notes, and the module map are in [Building from source](doc/building.md).
 
 ## Contributing
 
