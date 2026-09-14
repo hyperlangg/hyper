@@ -1,0 +1,5 @@
+let d = {}
+print(d)
+print(d.len())
+let xs = []
+print(xs)

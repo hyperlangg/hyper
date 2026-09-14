@@ -1,5 +1,5 @@
 # Compile-path dict get/set: ≥256 keys, overwrite, insertion-order keys().
-# `{}` parses as an empty list, so seed a real dict literal.
+# Seed with one entry because the loop below expects the key to remain present.
 let mut d = {"seed": 1}
 let mut i = 0
 while i < 256:
