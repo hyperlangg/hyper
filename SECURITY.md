@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-We support the latest `0.1.x` release line on `main`. Older pre-release snapshots before `0.1.0` are not supported for security fixes.
+We support the latest release on `main`. Unreleased snapshots that predate that release are not supported for security fixes.
 
 ## Reporting a vulnerability
 
