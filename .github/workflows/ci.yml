@@ -146,6 +146,12 @@ jobs:
       - name: Compiler string methods smoke
         run: cargo run --quiet -- compile ci/collections/strings_compile.hyp
 
+      - name: ASCII whitespace output parity
+        run: |
+          cargo run --quiet -- run ci/collections/ascii_whitespace.hyp > "$HYPER_TMP/ascii_ws_run.txt"
+          cargo run --quiet -- compile ci/collections/ascii_whitespace.hyp > "$HYPER_TMP/ascii_ws_compile.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/ascii_ws_run.txt" "$HYPER_TMP/ascii_ws_compile.txt"
+
       - name: Typecheck smoke
         run: cargo run --quiet -- typecheck ci/smoke.hyp
 
