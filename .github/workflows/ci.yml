@@ -140,6 +140,14 @@ jobs:
           cargo run --quiet -- compile ci/collections/empty_collections.hyp > "$HYPER_TMP/empty_compile.txt"
           "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/empty_expected.txt" "$HYPER_TMP/empty_run.txt"
           "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/empty_expected.txt" "$HYPER_TMP/empty_compile.txt"
+      - name: Negative index output parity
+        run: |
+          printf '30\nNone\n[10, 20, 99]\n2\n[1, 2, 7]\n' > "$HYPER_TMP/negative_index_expected.txt"
+          cargo run --quiet -- run ci/collections/negative_indexes.hyp > "$HYPER_TMP/negative_index_run.txt"
+          cargo run --quiet -- compile ci/collections/negative_indexes.hyp > "$HYPER_TMP/negative_index_compile.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/negative_index_expected.txt" "$HYPER_TMP/negative_index_run.txt"
+          "$HYPER_TMP/diff_lf.sh" "$HYPER_TMP/negative_index_expected.txt" "$HYPER_TMP/negative_index_compile.txt"
+
       - name: Compiler builtins smoke
         run: cargo run --quiet -- compile ci/collections/builtins_compile.hyp
 

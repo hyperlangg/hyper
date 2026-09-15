@@ -1,0 +1,11 @@
+# Negative indexes count from the end for lists and arrays.
+let mut xs = [10, 20, 30]
+print(xs[-1])
+print(xs[-4])
+xs[-1] = 99
+print(xs)
+
+let mut arr: Array[int32] = [1, 2, 3]
+print(arr[-2])
+arr[-1] = 7
+print(arr)

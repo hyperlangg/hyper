@@ -454,19 +454,31 @@ pub extern "C" fn hyper_rt_print_value(payload: i64, kind: i64) {
     print!("{}", format_value(&RtValue { kind, payload }));
 }
 
+fn normalize_list_index(index: i64, len: usize) -> Option<usize> {
+    if index >= 0 {
+        let pos = usize::try_from(index).ok()?;
+        return (pos < len).then_some(pos);
+    }
+    let from_end = usize::try_from(index.unsigned_abs()).ok()?;
+    if from_end > len {
+        return None;
+    }
+    Some(len - from_end)
+}
+
 #[unsafe(no_mangle)]
 pub extern "C" fn hyper_rt_list_get(list: i64, index: i64, out_kind: *mut i64) -> i64 {
     if list == 0 || out_kind.is_null() {
         return 0;
     }
     let list = unsafe { &*(list as *const RtList) };
-    if index < 0 || index as usize >= list.items.len() {
+    let Some(pos) = normalize_list_index(index, list.items.len()) else {
         unsafe {
             *out_kind = KIND_NONE;
         }
         return 0;
-    }
-    let item = &list.items[index as usize];
+    };
+    let item = &list.items[pos];
     unsafe {
         *out_kind = item.kind;
     }
@@ -479,11 +491,11 @@ pub extern "C" fn hyper_rt_list_set(list: i64, index: i64, value: i64, kind: i64
         return;
     }
     let list = unsafe { &mut *(list as *mut RtList) };
-    if index < 0 || index as usize >= list.items.len() {
+    let Some(pos) = normalize_list_index(index, list.items.len()) else {
         return;
-    }
+    };
     let old = std::mem::replace(
-        &mut list.items[index as usize],
+        &mut list.items[pos],
         RtValue {
             kind,
             payload: value,
@@ -926,6 +938,18 @@ mod tests {
         let keys = hyper_rt_coll_keys(dict, KIND_DICT, 1, 0);
         assert_eq!(hyper_rt_coll_len(keys, KIND_LIST, 1, 0), 2);
         assert_eq!(hyper_rt_coll_len(str_payload("hi"), KIND_STR, 1, 0), 2);
+    }
+
+    #[test]
+    fn list_get_set_support_negative_indexes() {
+        let list = list_of(&[(10, KIND_I64), (20, KIND_I64), (30, KIND_I64)]);
+        let mut kind = KIND_NONE;
+        assert_eq!(hyper_rt_list_get(list, -1, &mut kind), 30);
+        assert_eq!(kind, KIND_I64);
+        assert_eq!(hyper_rt_list_get(list, -4, &mut kind), 0);
+        assert_eq!(kind, KIND_NONE);
+        hyper_rt_list_set(list, -1, 99, KIND_I64);
+        assert_eq!(hyper_rt_list_get(list, 2, &mut kind), 99);
     }
 
     #[test]
